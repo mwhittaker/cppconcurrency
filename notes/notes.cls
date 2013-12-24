@@ -77,4 +77,7 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Sections
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\sectionfont{\color{CppGold}}  % sets colour of sections
+\sectionfont{\color{CppGold}}  
+\subsectionfont{\color{CppGold}} 
+\subsubsectionfont{\color{CppGold}}
+\paragraphfont{\color{CppGold}}

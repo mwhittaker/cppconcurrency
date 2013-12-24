@@ -1,1 +1,103 @@
 \section{Hello, world of concurrency in C++!}
+For the first time since its original publication in 1998, the C++ acknowledges multithreaded applications. The C++11 standard offers components in the library to support portable, platform-agnostic multithreaded code with guaranteed behaviour. In this section, we'll learn what exactly multithreaded and concurrent programs are.
+
+\subsection{What is concurrency?}
+At the most basic level, concurrency is about two independent actions happening at the same time. For example, you can watch football while I go swimming.
+
+\subsubsection{Concurrency in computer systems}
+In computer systems, \emph{concurrency} means a single system performing multiple independent activities in parallel, rather than sequentially.
+
+Historically, most computers have only one processor, but give the illusion of concurrency by \emph{task switching}: executing one application for a bit, then executing another for a bit, and so on. Some computers have multiple processors or multiple cores in a single processor. This provides \emph{hardware concurrency}.
+
+When operating in a single core system, the system has to perform a \emph{context switch} when switching between tasks. This involves saving state, loading state, modifying memory, etc. These context switches take time. They also may not occur in a system that offers hardware concurrency.
+
+All library features mentioned in this book will work on systems with or without hardware concurrency.
+
+\subsubsection{Approaches to concurrency}
+
+Imagine organizing a set of workers in an office. You could place each worker in her own office. This has the overhead of office space and communication costs, but each worker has her own set of resources. Imagine instead that all workers share the same office. You avoid the overheads of multiple offices but introduce the hassle of sharing resources. The former scenario represents multiple processes, and the latter represents multiple threads within the same process. You can implement any combination of the two.
+
+\paragraph{Concurrency with multiple processes}
+There are advantages and disadvantages to running multiple, single-threaded processes. 
+
+The disadvantages:
+\begin{itemize}
+  \item Communication between processes can be complicated or slow.
+  \item There is overhead launching and managing separate processes.
+  \item Some languages (e.g. C++) don't offer many interprocess communication libraries.
+\end{itemize}
+
+The advantages:
+\begin{itemize}
+  \item There is added security between processes. It becomes easier to write \emph{safe} concurrent code.
+  \item Multiple processes can be run on multiple computers connected on a network.
+\end{itemize}
+
+\paragraph{Concurrency with multiple threads}
+Each thread in a multi-threaded application acts as a light-weight process. All threads share the same address space. Again, there are advantages and disadvantages. 
+
+The disadvantages:
+\begin{itemize}
+  \item The coder must guarantee a consistent view of data between threads.
+\end{itemize}
+
+The advantages:
+\begin{itemize}
+  \item Less overhead.
+  \item Better library support.
+\end{itemize}
+
+This book will discuss only concurrency via multi-threading.
+
+\subsection{Why use concurrency?}
+The two main, almost only, reasons to use concurrency are separation of concerns and performance.
+
+\subsubsection{Using concurrency for separation of concerns}
+Separation of concerns and modularity is always a good idea when writing software. Threads allow you to modularize independent code that needs to run in parallel. For example, imagine a DVD player application. One thread needs to read, decode, and process the DVD data. Another thread needs to respond to user input. Separating each task to its own thread increases modularity. Note that here, the number of threads is independent of the number of processors.
+
+\subsubsection{Using concurrency for performance}
+Computers are getting increasingly faster with the introduction of more and more processors or cores. It is software's responsibility to take advantage of the resources. There are two ways to take advantage of threads.
+
+\paragraph{Divide a single task into parallel parts}
+Dividing a task is called \emph{task parallelism}. Dividing an algorithm to operate on certain parts of data is called \emph{data parallelism}. Algorithms that are readily susceptible to parallelism are called \emph{embarrassingly parallel}, \emph{naturally parallel}, or \emph{conveniently parallel}.
+
+\paragraph{Solve the same task multiple times}
+Perform the same operation on multiple chunks of data. For example, read multiple files at the same time. It still takes the same amount of time to process one chunk of data, but we can now process multiple chunks all at once.
+
+\subsubsection{When not to use concurrency}
+\begin{itemize}
+  \item Concurrent code can be difficult to understand. This makes it hard to read and maintain and can also introduce bugs. Make sure the benefits of concurrency outweigh these costs.
+  \item There is overhead to launch a thread. The OS has to allocate stack, adjust the scheduler, etc. Make sure the thread's execution is long enough to warrant its spawning.
+  \item Launching too many threads could slow down a system. Some computers have a finite amount of memory to distribute, and each thread needs its own stack. Many threads also increases the amount of context switching required.
+\end{itemize}
+  
+\subsection{Concurrency and multithreading in C++}
+Only recently has C++ supported standard multithreading. Understanding the history of threading will help motivate some of the new standard's design decisions.
+
+\subsubsection{History of multithreading in C++}
+The 1998 C++ standard does not acknowledge multiple threads or a memory model. Thus, you need compiler-specific extensions to write multithreaded code. There are some extensions, like POSIX C and the Microsoft Windows API, that have allowed the construction of multithreaded C++ programs.
+
+Not content with the purely imperative multithreading support of the C API, people have also turned to object-oriented C++ libraries such as Boost. Most libraries take advantage of RAII to ensure mutexes are unlocked when the relevant scope is exited.
+
+Though there has been lots of support, there still existed the need for a standard for portability and performance.
+
+\subsubsection{Concurrency support in the new standard}
+C++ supports many concurrency facilities and borrowed a lot from Boost. Other C++11 additions also support the addition of standard concurrency. The result is improved semantics and performance.
+
+\subsubsection{Efficiency in the C++ Thread Library}
+One concern of developers is that of efficiency. It's important to know the implementation costs associated with the abstracted C++ libraries that can be circumvented using the lower-level facilities. Such cost is an \emph{abstraction penalty}. The new C++ standard is fast and often prevents bugs. Even if profiling indicates that C++ standard facilities are the bottleneck, it still may be a result of poorly designed code.
+
+\subsubsection{Platform-specific facilities}
+If a developer wants to take advantage of platform-specific utility, the types in the C++ Thread Library offer a \cpp{native_handle()} member function that grants access to such facilities.
+
+\subsection{Getting Started}
+And now for some code.
+
+\subsubsection{Hello, Concurrent World}
+\inputcpp[label=list:hello-concurrent-world,caption=A simple Hello Concurrent World program]{\src{hello.cpp}}.
+Some items to notice in \listref{hello-concurrent-world}
+\begin{itemize}
+  \item The \cpp{<thread>} library declares thread management utilities. Other data management utilities are elsewhere.
+  \item Every thread object needs an \emph{initial function}. For the initial thread, this is \cpp{main()}. For user spawned threads, the function must be specified in the \cpp{std::thread} constructor. Here, it is \cpp{hello()}.
+  \item We call \cpp{join} to wait for the thread to finish.
+\end{itemize}

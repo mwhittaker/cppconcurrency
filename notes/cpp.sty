@@ -18,6 +18,9 @@
 % Listing Captions
 \RequirePackage{caption}
 
+% DVSM font
+\RequirePackage{DejaVuSansMono}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Colors
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -43,7 +46,7 @@
 % cpp Language Definition
 \lstdefinelanguage{cpp} {
   % Basic settings
-  basicstyle=\smaller\tt,
+  basicstyle=\smaller\ttfamily,
   tabsize=4,
   %frame=single,
   showstringspaces=false,
@@ -138,7 +141,8 @@
     xor_eq
   },
   keywords=[2]{
-    vector
+    vector,
+    std
   },
   morestring=[b]",
   morestring=[b]',
@@ -168,4 +172,7 @@
 \newcommand*{\cpp}{\lstinline[{language=cpp}]} %[
 
 % cpp input listing definition
-\newcommand{\inputcpp}[1]{\lstinputlisting[language=cpp]{#1}}
+\newcommand{\inputcpp}[2][]{
+  \captionsetup{options=CPP}
+  \lstinputlisting[language=cpp,#1]{#2}
+}
