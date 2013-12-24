@@ -1,0 +1,66 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Document Class
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass{notes}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Packages
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\usepackage{cpp}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% New Commands
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Listing reference
+% Reference listings.
+\newcommand{\listref}[1]{Listing~\ref{list:#1}}
+
+%% Title page
+\renewcommand*{\titlepage}{\begingroup
+\raggedleft
+\vspace*{\baselineskip}
+
+{\Large Michael Whittaker}\\[0.167\textheight]
+
+{\textcolor{CppGold}{\Huge C++ Concurrency In Action}}\\[\baselineskip] 
+
+{\Large \textit{Thoughts and Notes}}\par
+
+\vfill
+
+{\large \link{www.github.com/mwhittaker/cppconcurrency}{www.github.com/mwhittaker/cppconcurrency}}\par
+
+\vspace*{3\baselineskip}
+\endgroup}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Document
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+%% Title Page
+\thispagestyle{empty}
+\titlepage
+\newpage
+
+%% Table of Contents
+\tableofcontents
+\newpage
+
+%% Preface
+\subsection*{Preface}
+% TODO: comment on the contents of this book.
+
+%% Chapters
+\input{chapter01.tex}
+\input{chapter02.tex}
+\input{chapter03.tex}
+\input{chapter04.tex}
+\input{chapter05.tex}
+\input{chapter06.tex}
+\input{chapter07.tex}
+\input{chapter08.tex}
+\input{chapter09.tex}
+\input{chapter10.tex}
+
+\end{document}

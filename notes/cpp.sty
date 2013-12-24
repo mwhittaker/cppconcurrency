@@ -1,0 +1,171 @@
+%% Filename      : cpp.sty 
+%% Author(s)     : Michael Whittaker (mjw297@cornell.edu)
+%% Last Modified : 2013-12-22
+\ProvidesPackage{cpp}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Imports
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Colors
+\RequirePackage[usenames,dvipsnames,svgnames,table]{xcolor}
+
+% Typesetting code
+\RequirePackage{listings}
+
+% Relative font sizes
+\RequirePackage{relsize}
+
+% Listing Captions
+\RequirePackage{caption}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Colors
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\definecolor{BackgroundGreen}{HTML}{E6F0F0}
+\definecolor{NoteBackground}{HTML}{FFFCE3}
+\definecolor{BackgroundBeige}{HTML}{FDF6E3}
+\definecolor{BackgroundYellow}{HTML}{FEFBDF}
+\definecolor{SolarizedGrey}{HTML}{657B83}
+\definecolor{CornellRed}{HTML}{B31B1B}
+\definecolor{CppGold}{HTML}{b38000}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Captions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\DeclareCaptionFont{white}{\color{white}}
+\DeclareCaptionFormat{listing}{\colorbox[HTML]{dab359}{\parbox{\dimexpr\textwidth-2\fboxsep\relax}{#1#2#3}}}
+\captionsetup[CPP]{format=listing,labelfont=white,textfont=white, singlelinecheck=false, margin=0pt, font={bf,footnotesize}}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% C++ Typesetting
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% cpp Language Definition
+\lstdefinelanguage{cpp} {
+  % Basic settings
+  basicstyle=\smaller\tt,
+  tabsize=4,
+  %frame=single,
+  showstringspaces=false,
+  mathescape=true,
+  breaklines=true,
+  numbers=left,
+  % Keywords, strings, and comments
+  keywords={
+    alignas,
+    alignof,
+    and,
+    and_eq,
+    asm,
+    auto,
+    bitand,
+    bitor,
+    bool,
+    break,
+    case,
+    catch,
+    char,
+    char16_t,
+    char32_t,
+    class,
+    compl,
+    const,
+    constexpr,
+    const_cast,
+    continue,
+    decltype,
+    default,
+    delete,
+    do,
+    double,
+    dynamic_cast,
+    else,
+    enum,
+    explicit,
+    export,
+    extern,
+    false,
+    float,
+    for,
+    friend,
+    goto,
+    if,
+    inline,
+    int,
+    long,
+    mutable,
+    namespace,
+    new,
+    noexcept,
+    not,
+    not_eq,
+    nullptr,
+    operator,
+    or,
+    or_eq,
+    private,
+    protected,
+    public,
+    register,
+    reinterpret_cast,
+    return,
+    short,
+    signed,
+    sizeof,
+    static,
+    static_assert,
+    static_cast,
+    struct,
+    switch,
+    template,
+    this,
+    thread_local,
+    throw,
+    true,
+    try,
+    typedef,
+    typeid,
+    typename,
+    union,
+    unsigned,
+    using,
+    virtual,
+    void,
+    volatile,
+    wchar_t,
+    while,
+    xor,
+    xor_eq
+  },
+  keywords=[2]{
+    vector
+  },
+  morestring=[b]",
+  morestring=[b]',
+  morecomment=[l]{//},
+  morecomment=[s]{/*}{*/},
+  morecomment=[l][\color{gray}]{\#},
+  % Colors and style
+  %backgroundcolor=\color{BackgroundYellow},
+  keywordstyle=\color{blue},
+  keywordstyle=[2]\color{DarkOrchid},
+  commentstyle=\color{ForestGreen},
+  stringstyle=\color{Red},
+  numberstyle=\color{SolarizedGrey}
+}
+
+% CPP environment
+\lstnewenvironment{CPP}[1][]{
+  \lstset{
+    language=cpp,
+    #1
+  }
+  \captionsetup{options=CPP}
+}{}
+
+
+% cpp inline definition.
+\newcommand*{\cpp}{\lstinline[{language=cpp}]} %[
+
+% cpp input listing definition
+\newcommand{\inputcpp}[1]{\lstinputlisting[language=cpp]{#1}}

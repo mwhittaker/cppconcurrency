@@ -1,0 +1,90 @@
+%% Filename      : notesutils.sty 
+%% Author(s)     : Michael Whittaker (mjw297@cornell.edu)
+%% Last Modified : 2013-12-22
+\ProvidesPackage{notesutils}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Imports
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\RequirePackage{etoolbox}
+\RequirePackage[english]{babel}
+\RequirePackage{amsmath}
+\RequirePackage{amssymb}
+\RequirePackage{amsthm}
+\RequirePackage{graphicx}
+\RequirePackage{enumerate}
+\RequirePackage[usenames,dvipsnames,svgnames,x11names,table]{xcolor}
+\RequirePackage[hidelinks]{hyperref}
+\RequirePackage{xparse}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% CS 2800
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Set (content) 
+% Creates set in the form {content}.
+\newcommand{\set}[1]{\left\{{#1}\right\}}
+        
+% Set Such That (content, condition)
+% Creates set in the form {content | condition}.
+\newcommand{\setst}[2]{\set{{#1} \mid {#2}}} 
+
+% Probability (content)
+% Creates probability in the format Pr[content]
+\newcommand{\pr}[1]{\ensuremath{\text{Pr}\left[{#1}\right]}}
+
+% Conditional probability (content, condition)
+% Creates probability in the format Pr[content | condition]
+\newcommand{\cpr}[2]{\ensuremath{\text{Pr}\left[{#1} \middle\vert {#2}\right]}}
+
+% Expectation (content)
+% Creates expectation in the format E[content]
+\newcommand{\ex}[1]{\mathbb{E}\left[{#1}\right]}
+
+% Variance (content)
+% Creates variance in the format Var[content]
+\newcommand{\var}[1]{\text{Var}\left[{#1}\right]}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Math
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Color Box [color][opacity](math)
+% Puts math in a colored box. This command is made using xparse.
+\DeclareDocumentCommand{\cbox}{O{red} O{15} m}{
+  \colorbox{#1!#2}{$\displaystyle#3$}
+}
+
+% Replaces the tombstones at the end of proofs with black squares
+\renewcommand{\qedsymbol}{$\blacksquare$}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Links 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newcommand\link[2]{\href{#1}{{\color{blue}\underline{\smash{#2}}}}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Colors
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% http://get-software.net/macros/latex/contrib/xcolor/xcolor.pdf
+% Page 38
+\newcommand{\textblack}[1]{\textcolor{black}{#1}}
+\newcommand{\textblue}[1]{\textcolor{blue}{#1}}
+\newcommand{\textbrown}[1]{\textcolor{brown}{#1}}
+\newcommand{\textcyan}[1]{\textcolor{cyan}{#1}}
+\newcommand{\textdarkgray}[1]{\textcolor{darkgray}{#1}}
+\newcommand{\textgray}[1]{\textcolor{gray}{#1}}
+\newcommand{\textgreen}[1]{\textcolor{green}{#1}}
+\newcommand{\textlightgray}[1]{\textcolor{lightgray}{#1}}
+\newcommand{\textlime}[1]{\textcolor{lime}{#1}}
+\newcommand{\textmagenta}[1]{\textcolor{magenta}{#1}}
+\newcommand{\textolive}[1]{\textcolor{olive}{#1}}
+\newcommand{\textorange}[1]{\textcolor{orange}{#1}}
+\newcommand{\textpink}[1]{\textcolor{pink}{#1}}
+\newcommand{\textpurple}[1]{\textcolor{purple}{#1}}
+\newcommand{\textred}[1]{\textcolor{red}{#1}}
+\newcommand{\textteal}[1]{\textcolor{teal}{#1}}
+\newcommand{\textviolet}[1]{\textcolor{violet}{#1}}
+\newcommand{\textwhite}[1]{\textcolor{white}{#1}}
+\newcommand{\textyellow}[1]{\textcolor{yellow}{#1}}
