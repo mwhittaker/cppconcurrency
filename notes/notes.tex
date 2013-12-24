@@ -11,6 +11,10 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % New Commands
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Macros
+\newcommand{\github}{\link{http://www.github.com/mwhittaker/cppconcurrency}{cppconcurrency github}}
+
+
 %% Listing reference
 % Reference listings.
 \newcommand{\listref}[1]{Listing~\ref{list:#1}}
@@ -19,16 +23,11 @@
 \renewcommand*{\titlepage}{\begingroup
 \raggedleft
 \vspace*{\baselineskip}
-
 {\Large Michael Whittaker}\\[0.167\textheight]
-
 {\textcolor{CppGold}{\Huge C++ Concurrency In Action}}\\[\baselineskip] 
-
 {\Large \textit{Thoughts and Notes}}\par
-
 \vfill
-
-{\large \link{www.github.com/mwhittaker/cppconcurrency}{www.github.com/mwhittaker/cppconcurrency}}\par
+{\large \github{}}\par
 
 \vspace*{3\baselineskip}
 \endgroup}
@@ -49,7 +48,12 @@
 
 %% Preface
 \subsection*{Preface}
-% TODO: comment on the contents of this book.
+This document contains the notes, musings, and thoughts generated during my reading of ``C++ Concurrency in Action'' by Anthony Williams. The notes were taken primarily to encourage a thorough reading of the book and to help me recall the most important tidbits from the book upon a rereading of my notes. I can imagine the notes may be helpful to more than just me, so I am making them publicly available. A concurrent programming novice, I cannot guarantee my notes are entirely correct, or even sensical at times. If you ever encounter a mistake, please contact me at mjw297@cornell.edu.
+
+Along with the notes, I've thrown together some source code and other resources. Some of the code is taken directly from the text while some is original. All notes, code, and resources can be found at the \github{}.
+
+Enjoy!
+\newpage  
 
 %% Chapters
 \input{chapter01.tex}
