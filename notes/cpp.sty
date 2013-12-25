@@ -21,6 +21,9 @@
 % DVSM font
 \RequirePackage{DejaVuSansMono}
 
+% Calculator (widthof)
+\RequirePackage{calc}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Colors
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -37,8 +40,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \DeclareCaptionFont{white}{\color{white}}
 \DeclareCaptionFormat{listing}{\colorbox[HTML]{dab359}{\parbox{\dimexpr\textwidth-2\fboxsep\relax}{#1#2#3}}}
-\captionsetup[CPP]{format=listing,labelfont=white,textfont=white, singlelinecheck=false, margin=0pt, font={bf,footnotesize}}
+\captionsetup[CPP]{format=listing,labelfont=white,textfont=white, singlelinecheck=false, margin=0pt, font={bf,small}}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Lengths
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newlength{\charwidth}
+\setlength{\charwidth}{\widthof{\tt{a}}}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % C++ Typesetting
@@ -162,6 +170,7 @@
 \lstnewenvironment{CPP}[1][]{
   \lstset{
     language=cpp,
+    linewidth=80\charwidth,
     #1
   }
   \captionsetup{options=CPP}
@@ -172,7 +181,8 @@
 \newcommand*{\cpp}{\lstinline[{language=cpp}]} %[
 
 % cpp input listing definition
-\newcommand{\inputcpp}[2][]{
+\newcommand{\inputcpp}[2][ ]{
   \captionsetup{options=CPP}
-  \lstinputlisting[language=cpp,#1]{#2}
+  \lstset{linewidth=80\charwidth}
+  \lstinputlisting[language=cpp,#1]{ #2 } 
 }

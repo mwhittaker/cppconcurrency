@@ -2,15 +2,13 @@ CXX      = g++
 RM       = rm
 CPPFLAGS = -Wall -Wextra -Werror -g -O2 -Wall -pedantic -std=c++11 -pthread
 SRCS     = $(wildcard *.cpp) 
-HEADERS  = $(wildcard *.h) 
+OBJS     = $(wildcard ../src/*.cpp)
+INC      = -I../src
 
 all: $(SRCS:.cpp=)
 
-.cpp:
-	$(CXX) -c $(CPPFLAGS) $< 
-
-.o:
-	@#
+.cpp: $(OBJS)
+	$(CXX) $(CPPFLAGS) $(INC) $(OBJS) $< -o $@.out
 
 clean:
-	-$(RM) *.o
+	$(RM) *.out

@@ -1,1 +1,192 @@
 \section{Managing threads}
+In this chapter, we'll discuss the basics of launching a thread, waiting for it to finish, or running it in the background. We'll also look at passing additional parameters to a thread, transferring thread ownership, and identifying a good number of threads to use.
+
+\subsection{Basic thread management}
+Every C++ has at least one thread. The one started by the C++ runtime invokes \cpp{main()}. When we launch threads, we have to provide an entry point, similar to \cpp{main()}. When the entry point terminates, the thread exits.
+
+\subsubsection{Launching a thread}
+To launch a thread, pass a callable object to the \cpp{std::thread} constructor. 
+
+\begin{CPP}
+void do_work();
+std::thread my_thread(do_work);
+\end{CPP}
+
+This callable can be a function, class, lambda, whatever! Don't forget to include the \cpp{<thread>} header.
+
+After spawning a thread, you must decide to wait for it to finish (by joining) or let it run on its own (by detaching it). If you don't decide before the \cpp{std::thread} object is destroyed, then \cpp{std::terminate()} is called within the thread. Joining or detaching the thread must happen even in the event of exceptions.
+
+\paragraph{Functor}
+An example thread spawn using a functor is given in \listref{functor-spawn}. Note that the functor is \textbf{copied} into the storage of the newly created thread and invoked from there. In order to avoid the most vexing parse, you can initialize in a variety of ways shown in \listref{functor-spawn}. Also note that the output of the execution of \listref{functor-spawn} is non-deterministic due to the nature of threads and messy because we do not lock standard output.
+
+\inputcpp[label=list:functor-spawn,caption=Spawning a thread using a functor]{\listing{functor_spawn.cpp}}
+
+\paragraph{Lambda} 
+We can also spawn threads using lambdas as shown in \listref{lambda-spawn}.
+
+\inputcpp[label=list:lambda-spawn,caption=Spawning a thread using a lambda]{\listing{lambda_spawn.cpp}}
+
+\paragraph{Dangling references}
+If you decide to let your thread run, you must ensure that it does not reference any invalid data. This occurs when the thread has a pointer or reference to automatically allocated memory. See \listref{dangling-reference} for an example.
+
+\inputcpp[label=list:dangling-reference,caption=Dangling references and threads]{\listing{dangling_reference.cpp}}
+
+\subsubsection{Waiting for a thread to complete}
+If you need to wait for a thread to complete, call \cpp{join()} on the associated \cpp{std::thread} object. In \listref{dangling-reference}, changing \cpp{t.detach()} to \cpp{t.join()} will remove the problem of a dangling reference. \listref{dangling-reference} is a rather contrived example. Spawning a thread and immediately joining it doesn't do much. In less contrived code, the spawning thread would do other work or spawn multiple working threads.
+
+\cpp{join()} also cleans up storage associated with a thread, so the \cpp{std::thread} object is no longer associated with its now finished thread. In fact, it's not associated with any thread. You can only call \cpp{join()} once on a thread. \cpp{joinable()} will return false, as shown in \listref{false-joinable}.
+
+\inputcpp[label=list:false-joinable,caption=You can only join a thread once]{\listing{false_joinable.cpp}}
+
+\subsubsection{Waiting in exceptional circumstances}
+If you want to let a thread run in the background, you can usually call \cpp{detach()} immediately after spawning the thread. However, if you want to wait for a thread to finish, you must call \cpp{join()} in all circumstances, exceptional or otherwise. You could use \cpp{try-catch} blocks, as shown in \listref{try-catch-join}. See \listref{dangling-reference} for the definition of \cpp{struct fun}.
+
+\begin{CPP}[label=list:try-catch-join,caption=Try-catch for exceptional joins]
+struct fun;
+  
+void f() {
+    int local_state = 0;
+    std::thread t{fun(local_state)};
+    try {
+        // stuff
+    }
+    catch (/*something*/) {
+        t.join();
+        throw;
+    }
+    t.join();
+}
+\end{CPP}
+
+Using \cpp{try-catch} blocks is verbose and bug-prone. A better means of guaranteeing a thread joins is to use RAII, as shown in \listref{thread-guard-h}, \listref{thread-guard-cpp}, and \listref{thread-guard-join}.
+
+\inputcpp[label=list:thread-guard-h,caption=thread guard header file]{\src{thread_guard.h}}
+\inputcpp[label=list:thread-guard-cpp,caption=thread guard cpp file]{\src{thread_guard.cpp}}
+\inputcpp[label=list:thread-guard-join,caption=Joining using thread-guard]{\listing{thread_guard_join.cpp}}
+
+Notice in \listref{thread-guard-cpp} that we delete the default copy constructor and default copy assignment operator. Copying or assigning a \cpp{thread_guard} is dangerous because it could outlive the scope of the thread it is joining, thereby joining a non-joinable thread.
+
+\subsubsection{Running threads in the background}
+Calling \cpp{detach} on a thread will leave the thread to run in the background with no means of communicating with it. You can no longer create an \cpp{std::thread} object that owns the thread. You can no longer join the thread. The thread now belongs to the C++ runtime.
+
+Detached threads are called \emph{daemon threads} named after UNIX \emph{daemon processes}.
+
+\begin{CPP}
+std::thread t(do_background_work);
+t.detach();
+assert(!t.joinable());
+\end{CPP}
+
+Just like joining, you can only detach a thread object when it is associated with a thread. That is, when \cpp{joinable()} returns true.
+
+One prime example of a daemon thread is a word processor that can edit multiple documents within the same application. An example of such a word processor is given in \listref{word-processor}.
+
+\begin{CPP}[label=list:word-processor,caption=Detaching a thread to handle other documents]
+void edit_document(const std::string& filename) {
+    open_document_and_display_gui(filename);
+    while(!done_editing()) {
+        user_command cmd = get_user_input();
+        if (cmd.type == open_new_document) {
+            const std::string new_name = get_filename_from_user();
+            std::thread t(edit_document, new_name);
+            t.detach();
+        }
+        else {
+            process_user_input(cmd);
+        }
+    }
+}
+\end{CPP}
+
+Also consider the code in \listref{detach-thread}. If you detach a thread, but the main thread of execution terminates, then the detached thread will also be killed. Also note that you can detach an rvalue thread. This prevents you from inadvertently mucking with a thread object that has no associated thread anymore.
+
+\inputcpp[label=list:detach-thread,caption=Detaching a thread until the main thread terminates]{\listing{detach_thread.cpp}}
+
+
+\subsection{Passing arguments to a thread function}
+Passing arguments to the callable argument passed to a thread is as simple as passing additional arguments to the \cpp{std::thread} constructor. However, these additional arguments are \textbf{copied} into the internal storage of the thread!
+
+In \listref{multiple-args-oops}, a pointer to a local variable, \cpp{buffer} is copied into the thread. If \cpp{oops} exits before \cpp{f} accesses \cpp{buffer}, we invoke undefined behaviour. We remedy the situation in \listref{multiple-args-not-oops} by explicitly the \cpp{char *} to an \cpp{std::string} \textbf{before} passing the buffer to the constructor.
+
+\inputcpp[label=list:multiple-args-oops,caption=A multiple argument gotcha]{\listing{multiple_args_oops.cpp}}
+\inputcpp[label=list:multiple-args-not-oops,caption=A multiple argument gotcha resolved]{\listing{multiple_args_not_oops.cpp}}
+
+It is also possible to encounter the reverse scenario, when we want to pass a reference, but end up passing a copy. \listref{multiple-args-bad-ref} shows one such example. The local int, \cpp{i} is copied first into the local storage of the thread and then referenced. The copy of \cpp{i} would never change. In fact, on my machine, this code does not even compile. Instead, we have to make a ref using \cpp{std::ref} as shown in \listref{multiple-args-good-ref}.
+
+\begin{CPP}[label=list:multiple-args-bad-ref,caption=Failing to pass a reference to a thread]
+#include <iostream>
+#include <thread>
+
+void f(int& i) {
+    ++i;
+}
+
+int main() {
+    int i = 0;
+    std::thread t(f, i);
+    thread_guard(t);
+}
+\end{CPP}
+
+\inputcpp[label=list:multiple-args-good-ref,caption=Succeeding in passing a reference to a thread]{\listing{multiple_args_good_ref.cpp}}
+
+You can also pass a member function to a thread as long as the next argument is a pointer to the appropriate object, as shown in \listref{multiple-args-method}.
+
+\inputcpp[label=list:multiple-args-method,caption=Initializing thread with method]{\listing{multiple_args_method.cpp}}
+
+Another interesting argument passing involves movable datatypes, such as in \listref{multiple-args-movable}.
+
+\inputcpp[label=list:multiple-args-movable,caption=Moving data into a thread.]{\listing{multiple_args_movable.cpp}}
+
+\subsection{Transferring ownership of a thread}
+Threads are \emph{movable} but not \emph{copyable}. In \listref{moveable-copyable}, we see threads being moved around. In the last line, we try to assign a thread to \cpp{t1}, but \cpp{t1} is already associated with a thread. \cpp{std::terminate} is called.
+
+\begin{CPP}[label=list:moveable-copyable,caption=Moving Threads]
+void some_function();
+void some_other_function();
+std::thread t1(some_function);
+std::thread t2 = std::move(t1);
+t1 = std::thread(some_other_function);
+std::thread t3;
+t3 = std::move(t2);
+t1 = std::move(t3);
+\end{CPP}
+
+Threads can also be returned from functions as shown in \listref{thread-return}.
+
+\inputcpp[label=list:thread-return,caption=Returning a thread from a function]{\listing{thread_return.cpp}}
+
+Threads can also be passed into functions as shown in \listref{thread-pass}.
+
+\inputcpp[label=list:thread-pass,caption=Passing a thread into a function]{\listing{thread_pass.cpp}}
+
+One benefit of the movability of \cpp{std::thread}s is a modification of our previously written \cpp{thread_guard}. We can now write a \cpp{scoped_thread}, as shown in \listref{scoped-thread-h}, \listref{scoped-thread-cpp}, and \listref{scoped-thread-example}. Now, we no longer have to instantiate an lvalue thread. We can directly construct the thread within the constructor of the \cpp{scoped_thread}.
+
+\inputcpp[label=list:scoped-thread-h,caption=Scoped thread header]{\src{scoped_thread.h}}
+\inputcpp[label=list:scoped-thread-cpp,caption=Scoped thread cpp]{\src{scoped_thread.cpp}}
+\inputcpp[label=list:scoped-thread-example,caption=Scoped thread example]{\listing{scoped_thread_example.cpp}}
+
+Threads can also be moved nicely into STL containers, as shown in \listref{vector-of-threads}. Using the \cpp{scoped_thread} here doesn't work because a \cpp{scoped_thread} isn't movable. A better version of \cpp{scoped_thread} would fix this issue.
+
+\inputcpp[label=list:vector-of-threads,caption=Making a vector of threads.]{\listing{vector_of_threads.cpp}}
+
+\subsection{Choosing the number of threads at runtime}
+The function \cpp{std::thread::hardware_concurrency()} returns the number of actual hardware cores available, or 0 if the information is not accessible. \listref{hardware-concurrency} is a simple example. 
+
+\inputcpp[label=list:hardware-concurrency,caption=Displaying the number of hardware cores]{ \listing{hardware_concurrency.cpp} } 
+
+We can use this information to implement a parallel version of \cpp{std::accumulate}, as shown in \listref{accumulate-example}. A slower, non-concurrent version is shown in \listref{accumulate-example-slow}. Here, we don't handle exceptions. That material is saved for later. 
+
+\inputcpp[label=list:accumulate-example,caption=Fast accumulation]{ \listing{accumulate_example.cpp} } 
+\inputcpp[label=list:accumulate-example-slow,caption=Slow accumulation]{\listing{accumulate_example_slow.cpp}} 
+
+The source code for the accumulation is in \listref{accumulate-h} and \listref{accumulate-hpp}.
+
+\inputcpp[label=list:accumulate-h,caption=Fast accumulation header]{ \src{conc_numeric.h} } 
+\inputcpp[label=list:accumulate-hpp,caption=Fast accumulation ``source'']{\src{conc_numeric.hpp}} 
+
+
+\subsection{Identifying threads}
+Threads can be identified with \cpp{std::thread::get_id()} or \cpp{std::this_thread::get_id()} which both return an id of type \cpp{std::thread::id}. id's have a total ordering, can be hashed, and can be outputted. Some fun with id's is shown in \listref{thread-ids}.
+
+\inputcpp[label=list:thread-ids,caption=Fun with thread ids]{\listing{thread_ids.cpp}}
