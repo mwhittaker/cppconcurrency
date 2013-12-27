@@ -6,6 +6,7 @@ in Action.
 
 # Where are the notes? #
 Go to the notes directory and build the latex files into a pdf.
+
     cd notes
     make
 
@@ -16,5 +17,6 @@ in their respective directories.
 
 # Where is the documentation? #
 Go to doc and build the doxygen.
+
     cd doc
     make
