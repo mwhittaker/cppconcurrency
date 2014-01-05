@@ -1,1 +1,215 @@
 \section{Sharing data between threads}
+One benefit of concurrency is sharing data between threads, but this can also be inconvenient and bug-prone. This chapter covers how to safely share data between threads in C++.
+
+\subsection{Problems with sharing data between threads}
+Data sharing problems arise because of data modification. \textbf{If all shared data is read-only, there's no problem because the data read by one thread is unaffected by whether or not another thread is reading the same data.} However, if one thread begins modifying data, then trouble arises.
+
+Often, programs have \emph{invariants}: guarantees about the state or nature of the program. Temporarily, these invariants can be broken. For example, linked list invariants can be broken when deleting a node; heap invariants can be broken when updating a heap. If another thread accesses shared data when an invariant is broken, bugs occur. These are called \emph{race conditions}.
+
+\subsubsection{Race conditions}
+In concurrency, a \emph{race condition} is anything where the outcome depends on the relative ordering of execution of operations on two or more threads. Connotatively, race conditions are meant to mean problematic race conditions, which typically occur when modifying data in multiple steps yielding temporarily broken invariants.
+
+\subsubsection{Avoiding problematic race conditions}
+There are a couple ways to avoid problematic race conditions.
+\begin{itemize}
+  \item Wrap your data structure in a protection mechanism so that only one thread will see the temporarily broken invariants.
+  \item Redesign your invariants so modifications are sequences of indivisible steps. This is known as \emph{lock-free programming} and is discussed more later.
+  \item Use \emph{transactions}. Read memory locally, make modifications, then commit the modifications. This is still an area of research.
+\end{itemize}
+
+\subsection{Protecting share data with mutexes}
+Mutexes allow you to make some code mutually exclusive. That is, only one thread will be able to execute the code at any given time. 
+
+\subsubsection{Using mutexes in C++}
+You create a mutex by constructing an \cpp{std::mutex} instance. You can invoke \cpp{lock()} and \cpp{unlock()} methods. Typically you use an \cpp{std::lock_guard} to automatically lock and unlock the mutex. Some fun with mutexes is shown in \listref{list-mutex}.
+
+\inputcpp[label=list:list-mutex,caption=Protecting a list with a mutex]{\listing{list_mutex.cpp}}
+
+In \listref{list-mutex}, we use a global list and associated global mutex. In practice, we would pair both in a class. The two functions would become methods. If we wrap all methods in mutexes, everything becomes safe. Well, not quite! If a method returns a pointer or reference, then we could still trigger undefined behaviour and run into some trouble. Concurrent data structures require careful design to ensure that this doesn't happen.
+
+\subsubsection{Structuring code for protecting share data}
+We don't want to return any references or pointers to internal data. Less obviously, we also don't want to pass any references or pointers to user supplied functions. This could lead to trouble, as shown in \listref{mutex-user-function-trouble}.
+
+\inputcpp[label=list:mutex-user-function-trouble,caption=Accidentally passing out a reference to protected data.]{\listing{mutex_user_function_trouble.cpp}}
+
+By passing internal data to a user provided function, we provide a back door for bugs. In general, don't pass pointers and references to protected data outside the scope of the lock by
+\begin{itemize}
+  \item returning them
+  \item storing them in externally visible memory
+  \item passing them as arguments to user-supplied functions
+\end{itemize}
+
+\subsubsection{Spotting race conditions inherent in interfaces}
+Even if you wrap everything nicely with mutexes, there may still be race conditions. For example, lets consider the stack interface provided by the STL as shown in \listref{stack-interface}.
+
+\begin{CPP}[label=list:stack-interface,caption=The interface to the \cpp{std::stack} container adapter]
+template <typename T, typename Container = std::deque<T>>
+class stack {
+public:
+    /* constructors */
+    bool empty() const;
+    size_t size() const;
+    T& top();
+    T const& top() const;
+    void push(T const&);
+    void push(T&&);
+    void pop();
+    void swap(stack&&);
+};
+\end{CPP}
+
+If we switch \cpp{top} to not return a reference and we wrapped every method with a mutex, there would still be issues. The return of \cpp{size} and \cpp{empty} could not be trusted in a concurrent environment. For example, consider the simple code in \listref{stack-interface-oops}. A thread could call \cpp{top} on a stack that is empty. Or, two threads could perform \cpp{do_something} on the same element.
+
+\begin{CPP}[label=list:stack-interface-oops,caption=The problem with the standard stack interface]
+stack<int> s;
+if (!s.empty()) {
+    const int value = s.top();
+    s.pop();
+    do_something(value);
+}
+\end{CPP}
+
+In order to avoid this conundrum, we want to combine the \cpp{pop()} and \cpp{top()} calls. However, this leads into other issues. Imagine a \cpp{stack<vector<int>>}. If \cpp{pop} removed and returned an element, the stack could be modified and then you could run out of memory trying to return the element. The stack interface solves this problem by separating \cpp{top} and \cpp{pop}, but we are trying to combine them in our multithreaded environment. We can solve this problem in a couple of ways.
+
+\paragraph{Option 1: Pass in a reference}
+The user could pass a reference to a variable which will be assigned the popped value.
+\begin{CPP}
+std::vector<int> result;
+some_stack.pop(result);
+\end{CPP}
+
+This is impractical because the user is forced to construct an instance of the popping class. Also, the type must be assignable.
+
+\paragraph{Option 2: Require a no-throw copy constructor or move constructor}
+There only exists danger if returning an element by value throws an exception. We could limit our types to those that can guarantee a copy will not throw an exception. However, these no-throw copy constructible objects are far and few between.
+
+\paragraph{Option 3: Return a pointer to the popped item}
+We can return a pointer to the popped item instead of the item itself. However, we run into issues managing the memory. This is where \cpp{std::shared_ptr} becomes useful. 
+
+\paragraph{Option 4: Provide both option 1 and either option 2 or 3}
+If we choose either option 1 or 2, it is easy to provide option 1, so we might as well.
+
+\paragraph{Example definition of a thread-safe stack}
+An example definition of a thread-safe stack is given in \listref{conc-stack-h}, \listref{conc-stack-hpp}, and \listref{conc-stack-example}. Note that in \listref{conc-stack-example}, an exception may still be thrown because the stack may be emptied after \cpp{empty()} is checked and \cpp{pop()} is called.
+
+\inputcpp[label=list:conc-stack-h,caption=Concurrent stack header]{\src{conc_stack.h}}
+\inputcpp[label=list:conc-stack-hpp,caption=Concurrent stack ``source'']{\src{conc_stack.hpp}}
+\inputcpp[label=list:conc-stack-example,caption=Example with concurrent stack]{\listing{conc_stack_example.cpp}}
+
+Our experience with the thread-safe stack has shown that race conditions can arise from locking at too small a granularity. Problems can also arise at too large a granularity. Early implementations of the Linux kernel, for example, had a single global kernel lock. This slowed things tremendously. 
+
+Thus, there is a decision to make in the granularity of locking. If you choose a finer grained locking scheme, sometimes you need to hold multiple locks at once. This can lead to an issue called \emph{deadlock}.
+
+\subsubsection{Deadlock: the problem and a solution}
+Imagine a toy that comes in two parts: a drum and a drumstick. Imagine you have two children. If one child gets both parts, he can play merrily. If each child gets one part, then they wait for the other part forever. Replace the children with threads and the toy with mutexes and you've got yourself \emph{deadlock}.
+
+Typically to avoid deadlock, you lock items in a certain prescribed order. However, this isn't always straight forward. If we have a function that takes to instances of some class and attempts to swap members of the two classes, there is no order we can follow. Luckily, the standard provides us with \cpp{std::lock}, as shown in \listref{std-lock}. It offers all-or-nothing semantics when locking mutexes. 
+
+\inputcpp[label=list:std-lock,caption=Using \cpp{std::lock} and \cpp{std::lock_guard} in a swap operation]{\listing{std_lock.cpp}}
+
+\subsubsection{Further guidelines for avoiding deadlock}
+Deadlock can occur even without locks. For example, if two threads join on one another, there will be deadlock. Generally, deadlock can occur whenever a thread is waiting for another thread and that thread could be waiting for the other. The guidelines for avoiding deadlock boil down to one rule: \textbf{don't wait for another thread if there's a chance it's waiting for you}.
+
+\paragraph{Avoid nested locks}
+Don't acquire a lock if you already have one. This will eliminate lock based deadlock (but not all deadlock). If you really need to lock multiple mutexes, use \cpp{std::lock()}.
+
+\paragraph{Avoid calling user-supplied code while holding a lock}
+If you acquire a lock and then call a user supplied function, it may acquire a lock, thus violating the first rule. Sometimes, this is unavoidable.
+
+\paragraph{Acquire locks in a fixed order}
+If you must acquire multiple threads and you can't call \cpp{std::lock()}, then acquire the locks in the same order in every thread. For example, consider a linked list where every node has a mutex. You want to lock mutexes as you traverse a list so that multiple threads can access the list all at once. If you lock hand over hand, there exists the possibility for deadlock.
+
+Imagine two threads traversing the nodes in opposite directions. They could meet in the middle and create deadlock where one node locked A and is waiting for B while the other node locked B and is waiting for A.
+
+By mandating a specific ordering on lock acquisition, you can avoid these potential deadlocks.
+
+\paragraph{Use a lock hierarchy}
+A particular case of defining a lock ordering, we can divide our program into layers and assign priorities to the mutexes at each level. A thread cannot lock a mutex if it holds a mutex at a lower level. An implementation of this hierarchical mutex is given in \listref{hier-mutex-h} and \listref{hier-mutex-cpp}. A proper use of the mutex is given in \listref{hier-mutex-example} and a hierarchy violating use is given in \listref{hier-mutex-oops}.
+
+\inputcpp[label=list:hier-mutex-h,caption=Hierarchical mutex header]{\src{hierarchical_mutex.h}}
+\inputcpp[label=list:hier-mutex-cpp,caption=Hierarchical mutex source]{\src{hierarchical_mutex.cpp}}
+\inputcpp[label=list:hier-mutex-example,caption=Hierarchical mutex conforming example]{\listing{hierarchical_mutex_example.cpp}}
+\inputcpp[label=list:hier-mutex-oops,caption=Hierarchical mutex violating example]{\listing{hierarchical_mutex_oops.cpp}}
+
+The downfall of the lock hierarchy is that a thread cannot own multiple mutexes of the same priority. For a hand-over-hand locking scheme, as with a linked list for example, this becomes impractical.
+
+\paragraph{Extending these guidelines beyond locks}
+The same precautions taken to avoid lock based deadlock can apply to other types of deadlock. For example, it is generally a bad idea to wait for a thread when owning a mutex. That thread may be waiting for your mutex.
+
+\subsubsection{Flexible locking with \cpp{std::unique_lock}}
+\cpp{std::unique_lock} is a more flexible version of \cpp{std::lock_guard}. It doesn't always own the mutex it is maintaining. As a result, it takes up slightly more space and can be slightly slower. But, it offers more flexibility.
+
+You modify the behaviour of an \cpp{std::unique_lock} by passing in \cpp{std::defer_lock} or \cpp{std::adopt_lock}. Unique locks can also be unlocked manually. The swap operation from \listref{std-lock} is rewritten using unique locks in \listref{unique-lock-swap}.
+
+\inputcpp[label=list:unique-lock-swap,caption=Using \cpp{std::lock()} and \cpp{std::unique_lock} in a swap operation]{\listing{unique_lock_swap.cpp}}
+
+\subsubsection{Transferring ownership between scopes}
+Because an \cpp{std::unique_lock} does not need to own the mutex it governs, it can be used to transfer the ownership of a lock. This can by done by moving, but not copying, the unique lock as shown in \listref{unique-lock-move}.
+
+\inputcpp[label=list:unique-lock-move,caption=Moving a unique lock]{\listing{unique_lock_move.cpp}}
+
+\subsubsection{Locking at an appropriate granularity}
+Lock granularity is a loosely defined term that describes the amount of data protected by a single lock. A fine-grained lock protects a small amount of data and a coarse-grained lock protects a large amount of data.  It is important to choose an appropriate lock granularity. It is also important to not hold the lock when you don't need to; this can slow down all other threads waiting for the lock. You should especially avoid long operations when holding a lock, such as file I/O or obtaining another lock. An \cpp{std::unique_lock} is good for managing lock granularity, as shown in \listref{unique-lock-granularity}.
+
+\begin{CPP}[label=list:unique-lock-granularity,caption=Obtaining appropriate lock granularity using \cpp{std::unique_lock}]
+void get_and_process_data() {
+    std::unique_lock<std::mutex> lock(m);
+    some_class data_to_process = get_next_data_chunk();
+    lock.unlock();
+    result_type result = process(data_to_process);
+    lock.lock();
+    write_result(data_to_process, result);
+}
+\end{CPP}
+
+\listref{int-lock-granularity} shows how to reduce the amount of time holding a lock by copying \cpp{int}. Note however, that this changes the semantics of the equality. The equality operator may return true even if the two instances were never equal at any given point in time. 
+
+\inputcpp[label=list:int-lock-granularity,caption=Fine-grained locking on two int wrappers.]{\listing{int_lock_granularity.cpp}}
+
+\subsection{Alternative facilities for protecting shared data}
+Although mutexes are the most general mechanism for protecting shared data, they are not the only mechanism. Some specific scenarios have more appropriate alternatives. For example, some data needs protection only during initialization. Using a mutex for this scenario can come with inefficiencies. 
+
+\subsubsection{Protecting shared data during initialization}
+Some data is so expensive to construct -- say loading a database or allocating a large block of memory -- that we want to perform the construction only if necessary. That is, we want to \emph{lazily} construct the object. 
+
+\paragraph{Single-threaded implementation}
+\listref{simple-lazy-construct} shows a simple lazy construction typical of single threaded code.
+
+\inputcpp[label=list:simple-lazy-construct,caption=Simple lazy construction]{\listing{simple_lazy_construct.cpp}}
+
+\paragraph{Naive multi-threaded implementation}
+If the shared resource is inherently thread safe, then the only modification required to make the code in \listref{simple-lazy-construct} is to add a mutex to the initialization. However, this unnecessarily serializes the code as all threads must wait for the mutex to check if the shared resources has already been initialized. This is shown in \listref{mutex-lazy-construct}.
+
+\inputcpp[label=list:mutex-lazy-construct,caption=Lazy construction using a mutex that serializes code]{\listing{mutex_lazy_construct.cpp}}
+
+
+\paragraph{Undefined multi-threaded implementation}
+The code in \listref{mutex-lazy-construct} is so common, people have designed ``better'' ways to lazily construct. One such technique is the infamous \emph{Double-Checked Locking} pattern shown in \listref{undefined-lazy-construct}. The pattern is infamous because it is incorrect. The unprotected pointer check and the pointer allocation are not synchronized. This can lead to undefined behaviour when operating on the pointer. 
+
+\inputcpp[label=list:undefined-lazy-construct,caption=Double-checked locking undefined lazy construction]{\listing{undefined_lazy_construct.cpp}}
+
+\paragraph{std implementation}
+The C++ Standards Committee foresaw such scenarios and developed \cpp{std::once_flag} and \cpp{std::call_once} to handle it. The same implementation in \listref{simple-lazy-construct}, \listref{mutex-lazy-construct}, and \listref{undefined-lazy-construct} is rewritten using these features in \listref{std-lazy-construct}. The overhead of \cpp{std::call_once} typically less than the overhead of using a mutex explicitly.
+
+\inputcpp[label=list:std-lazy-construct,caption=Lazy construction using \cpp{std::call_once} and \cpp{std::once_flag}]{\listing{std_lazy_construct.cpp}}
+
+\cpp{std::once_flag} and \cpp{std::call_once} can also be used within a class, as shown in \listref{class-lazy-construct}.
+
+\inputcpp[label=list:class-lazy-construct,caption=Lazy construction using \cpp{std::call_once} and \cpp{std::once_flag} in a class]{\listing{class_lazy_construct.cpp}}
+
+\paragraph{static}
+In C++11, static variable initialization is guaranteed to be thread safe.
+
+\subsubsection{Protecting rarely updated data structures}
+Some data structures are read often but rarely written to: a generalization of the lazy initialization presented in the previous section. For example, consider a DNS cache that resolved domain names to their corresponding IP addresses. Such a data structure is rarely updated, but often read. 
+
+We need to use a \cpp{boost:shared_mutex} and \cpp{boost::shared_lock}. Using \cpp{std::lock_guard<boost::shared_mutex>} and \cpp{std::unique_lock<boost::shared_mutex>} ensure exclusive access as usual. Using \cpp{boost::shared_lock<boost::shared_mutex>} allows for shared access; multiple threads can share the lock at once. 
+
+If any thread has shared access to the lock, a thread trying to get exclusive access will block until all sharing threads relinquish their lock. Likewise, if a thread has exclusive access, any thread trying to get exclusive or shared access will block until the thread relinquishes the lock.
+
+An example dns cache using these boost mechanisms is given in \listref{boost-dns}.
+
+\inputcpp[label=list:boost-dns,caption=DNS cache using \cpp{boost::shared_mutex} and \cpp{boost::shared_lock}]{\listing{boost_dns.cpp}}
+
+\subsubsection{Recursive locking}
+It is undefined behaviour for to lock an \cpp{std::mutex} that you already own. An \cpp{std::recursive_mutex} works exactly like an \cpp{std::mutex} except that it can be relocked by the same thread that already owns it. The mutex must be unlocked the same number of times it was locked. If you ever find yourself using a recursive mutex, however, you should rethink your design and make sure it is necessary.
