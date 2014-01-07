@@ -10,5 +10,6 @@ all: $(SRCS:.cpp=)
 
 .cpp: $(OBJS)
 	$(CXX) $< -o $@.out $(CPPFLAGS) $(INC) $(OBJS) $(LIBS) 
+
 clean:
 	$(RM) *.out
