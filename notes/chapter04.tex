@@ -1,1 +1,199 @@
 \section{Synchronizing concurrent operations}
+In the last chapter we looked at how to protect shared data. However, threads also often need to synchronize actions. For example, one thread may need to wait for another thread to complete a task before it executes some action. This section will discuss \emph{condition variables} and \emph{futures} to accomplish this synchronization.
+
+\subsection{Waiting for an event or other condition}
+Imagine you are travelling overnight on a train. You don't want to miss your stop. There are a couple ways to make sure you get off at your stop. The first is to stay awake all night. You won't miss your stop, but you'll be tired. The second is where you look up the estimated time of arrival and set an alarm for that time. This works too, but you may wake up too early or, if your alarm clock dies, too late. Third and ideally, you would simply go to sleep and have someone else wake you up when you get to your stop.
+
+If a thread is waiting for another thread to complete a task, it has similar options.
+
+\paragraph{Option 1: Staying up all night}
+If a thread is waiting for another thread to complete a task, it can simply check a flag protected by a mutex. When the other thread completes its work, it sets the flag. This is akin to staying up all night talking to the driver of the train. 
+
+This strategy is a poor one because the waiting thread takes up precious processing time and, by grabbing the mutex protecting the flag, it can actually prevent the waited on thread from setting the flag. 
+
+\paragraph{Option 2: Sleeping a little}
+The second alternative is to sleep a little bit in between flag checks. This, like setting an alarm, can lead to a thread waking up too early or too late. An example of short sleeps is shown in \listref{sleeping-little}.
+
+\inputcpp[label=list:sleeping-little,caption=Waiting for an event with short sleeps]{\listing{sleeping_little.cpp}}
+
+\paragraph{Option 3: Getting woken up}
+The ideal option of waiting for an event is to be woken up by the thread you're waiting for. This facility is provided by the C++ Standard Library in the form of a \emph{condition variable}.
+
+\subsubsection{Waiting for a condition with condition variables}
+The C++ Standard Library offers two forms of a condition variable: \cpp{std::condition_variable} and \cpp{std::contition_variable_any}, both of which are declared in the \cpp{<condition_variable>} header. The former, \cpp{std::condition_variable}, must be used with mutexes while the second, \cpp{std::condition_variable_any}, can be used with anything mutex-like.
+
+\listref{cond-var-queue} shows a simple way for a thread to wait for a condition using condition variables. One thread pushes \cpp{int}s to a queue while the other thread waits for the queue to be non-empty, pops an element, and prints it. 
+
+The popping thread waits for a condition by calling \cpp{cv.wait(lk, /*callable predicate*/)}. First, the callable predicate is invoked. If it returns true, the function returns. If if returns false, the lock is relinquished and the thread goes to sleep. The thread can wake up if another thread notifies the condition variable. If it wakes up without being signalled, which it can do, it is called a \emph{spurious wake}. When the thread wakes up, it reacquires the lock and repeats the process. That is, if the callable predicate returns true, it returns otherwise it relinquishes the lock and goes back to sleep. As the callable predicate will be called an indeterminate number of times, it is generally good idea to avoid functions with side effects.
+
+The pushing thread pushes an \cpp{int} to the queue every second. It then wakes up a thread waiting on the condition variable, if there is one.  
+
+\inputcpp[label=list:cond-var-queue,caption=Simple waiting using a condition variable]{\listing{cond_var_queue.cpp}}
+
+\subsubsection{Building a thread-safe queue with condition variables}
+If we are going to design a thread-safe queue, it is beneficial to look at \cpp{std::queue} for inspiration on the operations we wish to provide. The \cpp{std::queue} interface can be found at \link{http://en.cppreference.com/w/cpp/container/queue}{cppreference's queue documentation}.
+
+If we ignore the more sophisticated constructors, assignment operators, and swap operations, we are left with three main groups of operations: queue information (\cpp{size} and \cpp{empty}), queue query (\cpp{front()} and \cpp{backk()}), and queue modification (\cpp{push()}, \cpp{pop()}, and \cpp{emplace()}). Much as in \listref{conc-stack-h} and \listref{conc-stack-hpp}, we must combine \cpp{front()} and \cpp{pop()}. Slightly different, we will make a \cpp{try_pop()} function and a \cpp{wait_pop()} function. The first will attempt to pop, but return if it fails. The second will wait until it can successfully pop from the queue. 
+
+A fully implemented concurrent queue with example usage is given in \listref{conc-queue-h}, \listref{conc-queue-hpp}, and \listref{conc-queue-example}.
+
+\inputcpp[label=list:conc-queue-h,caption=Concurrent queue header]{\src{conc_queue.h}}
+\inputcpp[label=list:conc-queue-hpp,caption=Concurrent queue ``source'']{\src{conc_queue.hpp}}
+\inputcpp[label=list:conc-queue-example,caption=Concurrent queue example that prints prime factors]{\listing{conc_queue_example.cpp}}
+
+\subsection{Waiting for one-off events with futures}
+Often times, a thread needs to wait for a one-off event. The C++ Standard Library models a one-off event with a \emph{future}. A thread can periodically check on the future or complete another task until it needs to wait for the future to complete. 
+
+The C++ Standard Library offers two kinds of features: \emph{unique futures} (\cpp{std::future<>}) and \emph{shared futures} (\cpp{std::shared_future<>}), modelled after \cpp{std::unique_ptr} and \cpp{std::shared_ptr}. An \cpp{std::future} instance is the only object associated with its event whereas multiple \cpp{std::shared_future} objects may refer to the same event. The futures themselves don't offer an synchronization; they still must be protected with something like a mutex.
+
+\subsubsection{Returning values from background tasks}
+Suppose you have a long-running calculation that you expect will eventually yield a useful result. Instead of spawning a new thread, we can use \cpp{std::async} which returns an \cpp{std::future}. We call \cpp{get()} on the future when we need the result. A very simple usage of futures and asynchronous calculations is shown in \listref{simple-future}. Futures also play well with additional arguments and move semantics as shown in \listref{move-future}.
+
+\inputcpp[label=list:simple-future,caption=Very simple future usage]{\listing{simple_future.cpp}}
+\inputcpp[label=list:move-future,caption=Multiple arguments and move semantics with futures]{\listing{move_future.cpp}}
+
+By default, it is up to the implementation to decide whether or \cpp{std::async} starts a new thread or runs sequentially when the future value is requested or waited on. You can specify the behaviour of the future by passing a first argument to \cpp{std::async} of type \cpp{std::future}. There are three possibilities:
+\begin{enumerate}
+  \item \cpp{std::launch::async} A new thread is launched.
+  \item \cpp{std::launch::deferred} The function call is deferred until \cpp{wait()} or \cpp{get()} is called. 
+  \item \cpp{std::launch::async | std::launch::deferred} (default) The implementation is free to choose.
+\end{enumerate}
+Note that if the function is deferred, it may never actually be invoked.
+
+\subsubsection{Associating a task with a future}
+\cpp{std::packaged_task<>} ties a future to a function or callable object. The template parameter of the \cpp{std::packaged_task<>} is a function signature, and the packaged task must be constructed with a callable that can accept the parameters and return a value convertible to the template's return value. Simple packaged task usage is shown in \listref{simple-packaged-task}.
+
+\inputcpp[label=list:simple-package-task,caption=Simple packaged task usage]{\listing{simple_packaged_task.cpp}}
+
+Packaged tasks can also be passed between threads. \listref{pass-packaged-task} shows this in action. A printing thread reads and sorts lines of input from standard input. The main thread sends tasks for that thread to perform.
+
+\inputcpp[label=list:pass-packaged-task,caption=Passing packaged tasks between threads]{\listing{pass_packaged_task.cpp}}
+
+\subsubsection{Making (std::)promises}
+\cpp{std::async} and \cpp{std::packaged_task<>} both allowed for the asynchronous return of a one-off value, in the form of an \cpp{std::future<>}. Both implicitly set some shared state that the \cpp{std::future<>} could access. Async objects were constructed with callables and set the shared state to the return of the callable. Packaged tasks did the same, but the return value was set when the packaged task was invoked using the function call operator. \cpp{std::promise}s allow you to explicitly set the value of an \cpp{std::future}. A simple usage of \cpp{std::promise<>} is given in \listref{simple-promise}. A slightly more advanced usage is given in \listref{medium-promise}.
+
+\inputcpp[label=list:simple-promise,caption=Very simple promise usage]{\listing{simple_promise.cpp}}
+\inputcpp[label=list:medium-promise,caption=Simple promise usage]{\listing{medium_promise.cpp}}
+
+\cpp{std::promise}s are used to represent asynchronous tasks that cannot be expressed as a single function or ones whose result may come from multiple sources. For example, if a single thread is processing multiple incoming packets in a single function, it may process multiple promises. A simpler more contrived example is given in \listref{contrived-promise}.
+
+\inputcpp[label=list:contrived-promise,caption=More advanced promising]{\listing{contrived_promise.cpp}}
+
+\subsubsection{Saving an exception for the future}
+Consider the code in \listref{root-exception} in which an exception is thrown in a single-threaded piece of code. If we are expecting an asynchronous return value in the form of an \cpp{std::future}, it would be ideal if the future was aware of the exception much as in the single-threaded case. In fact, this is the case. If \cpp{std::async} or \cpp{std::packaged_task<>} thrown an exception, the exception is placed in the \cpp{std::future} and is thrown when \cpp{std::future::get()} is invoked. This is shown in \listref{future-exception}.
+
+\inputcpp[label=list:root-exception,caption=Throwing an exception in a single-threaded piece of code]{\listing{root_exception.cpp}}
+\inputcpp[label=list:future-exception,caption=Catching exceptions thrown by \cpp{std::async} and \cpp{std::packaged_task<>}]{\listing{future_exception.cpp}}
+
+Naturally, \cpp{std::promise} provides the same functionality as \cpp{std::async} and \cpp{std::packaged_task<>} with an explicit function call, \cpp{std::promise::set_exception}. \cpp{std::promise::set_exception} can be invoked with \cpp{std::current::exception} or \cpp{std::make_exception_ptr(/*exception*/)} as shown in \listref{promise-exception}. When possible, using \cpp{std::make_exception_ptr()} is preferred over \cpp{std::current_exception()}.
+
+\inputcpp[label=list:promise-exception,caption=Storing exceptions using promises]{\listing{promise_exception.cpp}}
+
+Also, if a future or packaged task is destroyed before a value is stored to the future, an \cpp{std::future_error} is stored in the future. This is shown in \listref{broken-future}.
+
+\inputcpp[label=list:broken-future,caption=Breaking promises]{\listing{broken_future.cpp}}
+
+\subsubsection{Waiting from multiple threads}
+One pitfall of the \cpp{std::future<>} is that only one thread can wait for the result. If you require that multiple threads wait for a single result, you'll need an \cpp{std::shared_future<>}. \cpp{std::shared_future<>} instances, unlike \cpp{std::future} instances, are copyable.
+
+Individual access to future methods are not inherently synchronized. You can protect the shared data using a mutex to create mutual exclusion to the shared future. Preferably, you create a local copy of the shared future for each thread and each thread only accesses the shared data through its local copy of the shared future. Shared futures are constructed from futures; specifically, by moving futures into shared futures. Futures also have a member function \cpp{share()} that returns a shared future directly. This can be used with \cpp{auto} to infer types. A simple example using shared futures is given in \listref{shared-future}.
+
+\inputcpp[label=list:shared-future,caption=Simple shared future example]{\listing{shared_future.cpp}}
+
+\subsection{Waiting with a time limit}
+All blocking calls introduced until now can block indefinitely. Sometimes it is useful to set a time limit on the blocking. Most of the blocking procedures have alternate functions that allow you to wait on a \emph{duration-based} timeout and wait on an \emph{absolute} timeout. With the former, you specify the amount of time to wait until timeout. With the latter, you give a specific point in time in which to timeout. Duration-based functions are suffixed with \cpp{_for} and absolute functions are suffixed with \cpp{_until}. Before we dive into the alternate timeout functions, let's review how time works in C++.
+
+\subsubsection{Clocks}
+According to the C++ Standard, a clock is a class that provides four distinct pieces of information:
+\begin{itemize}
+  \item The time \cpp{now}
+  \item The type of the value used to represent the times obtained from the clock
+  \item The tick period of the clock
+  \item Whether or not the clock ticks at a uniform rate and is thus considered to be a \emph{steady} clock
+\end{itemize}
+
+The current time of the clock can be displayed by calling the static member function \cpp{now}. The return of \cpp{now} is specified by the \cpp{time_point typedef} member of the clock. Unfortunately, times are not so easily printable. This is shown in \listref{now-clock}.
+
+\inputcpp[label=list:now-clock,caption=Getting the current time using now]{\listing{now_clock.cpp}}
+
+The tick period of the clock is specified as a fractional number of seconds given by the \cpp{period typedef} member. For example, a clock that ticks 25 times per second has a period of \cpp{std::ratio<1,25>}. Periods are shown in \listref{period-clock}.
+
+\inputcpp[label=list:period-clock,caption=Getting clock periods]{\listing{period_clock.cpp}}
+
+If a clock ticks at a uniform rate and cannot be adjusted, it is considered a \emph{steady} clock. If a clock is steady, the \cpp{is_steady} static data memeber is \cpp{true}.
+
+\subsubsection{Durations}
+Durations are represented as a \cpp{std::chrono::duration<Rep, Period>} where \cpp{Rep} is the type of representation such as \cpp{int} or \cpp{double} and \cpp{Period} is the number of seconds a single unit of the duration represents. The C++ Standard Library offers many predefined typedefs including \cpp{std::chrono::seconds} and \cpp{std::chrono::milliseconds}. Explicit duration casts can be done with \cpp{std::chrono::duration_cast<>()}. The result of a duration cast is truncated. Durations also support regular arithmetic operators. This is shown in \listref{durations}.
+
+\inputcpp[label=list:durations,caption=Chrono durations]{\listing{durations.cpp}}
+
+You can use durations with \cpp{*_for()} functions. \listref{duration-for} shows a timeout on an asynchronous instance.
+
+\inputcpp[label=list:duration-for,caption=Waiting with a duration timeout]{\listing{duration_for.cpp}}
+
+\subsubsection{Time points}
+The time point for a clock is represented as an instance of \cpp{std::chrono::time_point<>}. The first template parameter is a clock and the second is a duration. The value of a time point is the length of time, in multiples of the duration, since the \emph{epoch} of the clock. The epoch is not defined by the standard or queryable. Typical epochs include 00:00 on January 1, 1970 or the boot time of the computer running the application. You can get the time since the epoch using \cpp{time_since_epoch()}.
+
+You can subtract and add durations from instances of time points to get other timepoints. You can also subtract two time points on the same clock. This is shown in \listref{timepoint-math}
+
+\inputcpp[label=list:timepoint-math,caption=Using timepoints to time an operation]{\listing{timepoint_math.cpp}}
+
+You can also use timepoints to set absolute timeouts. This is shown in \listref{absolute-timeout}.
+
+\inputcpp[label=list:absolute-timeout,caption=Waiting with an absolute timeout]{\listing{absolute_timeout.cpp}}
+
+\subsubsection{Functions that accept timeouts}
+The following list includes the classes and namespaces that include functions that accept timeouts. 
+\begin{itemize}
+  \item \link{http://en.cppreference.com/w/cpp/header/thread\#Namespaces}{\cpp{std::this_thread}}
+  \item \link{http://en.cppreference.com/w/cpp/thread/condition_variable}{\cpp{std::condition_variable}}
+  \item \link{http://en.cppreference.com/w/cpp/thread/condition_variable_any}{\cpp{std::condition_variable_any}}
+  \item \link{http://en.cppreference.com/w/cpp/thread/timed_mutex}{\cpp{std::timed_mutex}}
+  \item \link{http://en.cppreference.com/w/cpp/thread/recursive_timed_mutex}{\cpp{std::recursive_timed_mutex}}
+  \item \link{http://en.cppreference.com/w/cpp/thread/unique_lock}{\cpp{std::unique_lock}}
+  \item \link{http://en.cppreference.com/w/cpp/thread/future}{\cpp{std::future}}
+  \item \link{http://en.cppreference.com/w/cpp/thread/shared_future}{\cpp{std::shared_future}}
+\end{itemize}
+
+\subsection{Using synchronization of operations to simplify code}
+The synchronization utilities presented in this chapter allow for a concurrent, functional style of programming.
+
+\subsubsection{Functional programming with futures}
+Purely functional programs are easy to reason about concurrently, because they do not modify shared state. While the functional paradigm is not C++'s principle paradigm, C++ does offer many functional functionalities. Futures can be used to support functional concurrency: the results of computations can be passed around \emph{without any explicit access to shared data}.
+
+\paragraph{FP-style quicksort}
+A sequential implementation of quick sort is given in \listref{sequential-qsort}.
+
+\inputcpp[label=list:sequential-qsort,caption=Sequential functional quicksort]{\listing{sequential_qsort.cpp}}
+
+\paragraph{FP-style parallel quicksort}
+A parallel implementation of quick sort is given in \listref{parallel-qsort}. The major difference from \listref{sequential-qsort} is the future used to sort the bottom half of the list. 
+
+\inputcpp[label=list:parallel-qsort,caption=Parallel functional quicksort]{\listing{parallel_qsort.cpp}}
+
+Depending on your implementation of \cpp{std::async}, the parallel implementation of quicksort may or may not speed up performance.
+
+\subsubsection{Synchronizing operations with message passing}
+Another programming paradigm that avoids the use of shared mutable data is \link{http://en.wikipedia.org/wiki/Communicating_sequential_processes}{CSP}, Communicating Sequential Processes. There does not exist shared data between threads but there do exist communication channels allowing messages to be passed between them. CSP is the paradigm adopted by MPI.
+
+The idea of CSP is simple: \emph{if there's no shared data, each thread can be reasoned about entirely independently, purely on the basis of how it behaves in response to the messages that it received}. Essentially, each thread is a finite state machine. When it receives a message, it updates it state, performs some operations, and perhaps sends messages with the result of the processing.
+
+True communicating sequential processes share no data. C++ threads share an address space, so it is up to the implementer to ensure that threads do not share any data aside from the message queues. 
+
+Imagine you are implementing an ATM machine. You could divide the program into three communicating sequential threads, as in the \emph{Actor model}.
+\begin{itemize}
+  \item A thread to handle the \textbf{physical machine}
+  \item A thread to handle \textbf{ATM logic}
+  \item A thread to communicate with the \textbf{bank}
+\end{itemize}
+
+The ATM logic can be modelled with a finite state machine, as shown in \ref{fig:atm-state-machine}. The logic can be implemented as a class with a method for each state. 
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.75\linewidth]{\img{atm-state-machine.png}}
+  \caption{A simple state machine model for an ATM}
+  \label{fig:atm-state-machine}
+\end{figure}
+
+The full implementation of the ATM system is left to the book itself. 

@@ -18,7 +18,9 @@
 \RequirePackage[hidelinks]{hyperref}              
 \RequirePackage{float}                           
 \RequirePackage{lastpage}        
-\RequirePackage{sectsty}                 
+\RequirePackage{sectsty}
+\RequirePackage{caption}
+             
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Page Layout
@@ -81,3 +83,13 @@
 \subsectionfont{\color{CppGold}} 
 \subsubsectionfont{\color{CppGold}}
 \paragraphfont{\color{CppGold}}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Captions
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\captionsetup[figure]{
+  labelfont=bf,
+  textfont=bf,
+  justification=raggedright,
+  format=plain
+}
